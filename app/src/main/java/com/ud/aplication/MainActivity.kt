@@ -5,12 +5,17 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -23,14 +28,20 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.motionEventSpy
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ud.aplication.Enums.EnumDificultad
+import com.ud.aplication.Logic.Casilla
+import com.ud.aplication.Logic.Tablero
 
 
 class MainActivity : ComponentActivity() {
@@ -48,6 +59,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun Ventana() {
     val dificultad = remember { mutableStateOf(EnumDificultad.MEDIUM.toString()) }
+    var tablero = Tablero.inicializarTablero(dificultad.value)
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -71,12 +83,14 @@ fun Ventana() {
             }
         }
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
-            LazyVerticalGrid(columns = GridCells.Fixed(3)) {
-                items(6){ item ->
-                    Text(text = "item # $item")
-                }
-            }
+        Column(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+            MinesBoard(tablero)
         }
     }
 }
@@ -120,4 +134,33 @@ fun Desplegable(seleccion: MutableState<String>) {
         }
     }
 
+}
+
+@Composable
+fun MinesBoard (tablero: MutableList<MutableList<Casilla>>){
+    for(f in 0 until tablero.size){
+        Row {
+            for(c in 0 until tablero[0].size){
+                MiniesButton(f,c,tablero[f][c])
+            }
+        }
+    }
+}
+
+@Composable
+fun MiniesButton(f: Int, c: Int, casilla: Casilla){
+    val clicked = remember{ mutableStateOf(false) }
+    Button(
+        onClick = {
+            clicked.value = true },
+            modifier = Modifier
+                .padding(4.dp)
+                .size(40.dp)
+
+        ) {
+        Text(
+            text = casilla.valor.toString(),
+            modifier = Modifier.fillMaxSize()
+        )
+    }
 }

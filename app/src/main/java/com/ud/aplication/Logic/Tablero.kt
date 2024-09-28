@@ -5,7 +5,7 @@ import com.ud.aplication.Enums.EnumEstado
 import kotlin.random.Random
 
 object Tablero {
-    private val tablero: MutableList<MutableList<Casilla>> = mutableListOf()
+    private var tablero: MutableList<MutableList<Casilla>> = mutableListOf()
 
     fun inicializarTablero(dificultad: String?): MutableList<MutableList<Casilla>>{
         if(tablero.isEmpty()){
