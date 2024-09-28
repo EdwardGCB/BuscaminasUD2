@@ -1,45 +1,83 @@
-package com.ud.aplication.Logic;
+package com.ud.aplication.Logic
 
-public class Tablero {
-    private static Casilla[][] tablero;
+import com.ud.aplication.Enums.EnumDificultad
+import com.ud.aplication.Enums.EnumEstado
+import kotlin.random.Random
 
-    private Tablero(){
+object Tablero {
+    private val tablero: MutableList<MutableList<Casilla>> = mutableListOf()
 
-    }
-
-    public static Casilla[][] getTablero(int f, int c, int m){
-        if(tablero == null){
-            for (int i=0; i<f;i++) {
-                for (int j = 0; j < c; j++) {
-                    Casilla[][] tablero = new Casilla[i][j];
+    fun inicializarTablero(dificultad: String?): MutableList<MutableList<Casilla>>{
+        if(tablero.isEmpty()){
+            var filas =0
+            var columnas =0
+            var minas = 0
+            when(dificultad){
+                /*
+                * niveles:
+                * Facil = Tablero 8x8 - 10 Minas
+                * Mediano = Tablero 12x8 - 20 Minas
+                * Dificil = Tablero 15x8 - 35 Minas
+                *
+                * */
+                EnumDificultad.EASY.toString() -> {
+                    filas = 8
+                    columnas = 8
+                    minas = 10
+                }
+                EnumDificultad.MEDIUM.toString() -> {
+                    filas = 12
+                    columnas = 8
+                    minas = 20
+                }
+                EnumDificultad.HARD.toString() -> {
+                    filas = 15
+                    columnas = 8
+                    minas = 35
                 }
             }
-            generarMinas(f, c, m);
+            for (i in 0 until filas){
+                val filasCasillas = mutableListOf<Casilla>()
+                for (j in 0 until columnas){
+                    filasCasillas.add(Casilla())
+                }
+                tablero.add(filasCasillas)
+            }
+            agregarMinas(minas)
         }
-        return tablero;
+        return tablero
     }
 
-    public static void generarMinas(int f, int c, int m){
-        for(int contador =0; contador < m;){
-            int ft = (int) (Math.random() * f);
-            int ct = (int) (Math.random() * c);
-            if (tablero[ft][ct].getValor() != 100){ //Que la mina no se repita
-                tablero[ft][ct].setValor(100);
-                //Cuando la mina es generada le resto la cantidad de minas que voy a generar
-                //Si lo hiciera en el while() ocurriria que podria generar menos minas de las que solicita el nivel.
-                contador++;
-                for(int ft2=(ft-1);ft2<=(ft+1);ft++){
-                    /*
-                    * Se crean nuevas columnas temporales en este caso ct2 y ft2
-                    * debido a que debo recorrer el alrededor de la mina para
-                    * agregar un valor
-                    *
-                    * */
-                    for (int ct2=(ct-1);ct<=(ct+1);ct++){
-                        if ((ft2>=0)&&(ct2>=0)&&(ft2<ft)&&(ct2<ct)){
-                            if (tablero[ft2][ct2].getValor() != 100){
-                                tablero[ft2][ct2].setValor(tablero[ft2][ct2].getValor()+1);
-                            }
+    /*
+    * El parametro f = fila y c = columna hacen referencia al
+    * boton que realizo un evento onclick
+    * */
+    fun mostrarCerosAdyacentes(f: Int,c: Int){
+        tablero[f][c].estado = EnumEstado.VISIBLE.toString()
+        for (ft in (f-1).rangeUntil((f+1))){
+            for (ct in (c-1).rangeUntil((c+1))){
+                /*
+                * Realizamos una validacion donde se tienen que
+                * cumplir tres condiciones:
+                * 1. fila y la columna temporal debe existir en el tablero
+                * 2. la fila temporal o la columna tempotal deben ser
+                * diferentes a la fila y la columna que se selecciono
+                * 3. la cosilla tiene que estar oculta
+                * */
+                if(((ft>=0) && (ct>=0) && (ft< tablero.size) && (ct<tablero[0].size)) && ( (ft!=f) || (ct!=c))){
+                    if(tablero[ft][ct].estado != EnumEstado.VISIBLE.toString()){
+                        /*
+                        * Si cumple con las tres condiciones entonces hago la casilla visible
+                        * */
+                        tablero[ft][ct].estado = EnumEstado.VISIBLE.toString()
+
+                        /*
+                        * si cumple con la condicion de que el valor de la casilla
+                        * es 0 entonces repito el proceso pero con la posicion actual
+                        * */
+
+                        if (tablero[ft][ct].valor == 0){
+                            mostrarCerosAdyacentes(ft,ct)
                         }
                     }
                 }
@@ -47,4 +85,40 @@ public class Tablero {
         }
     }
 
+    /*
+    * Funcion para cuando el evento onClick se realizo en una mina
+    * */
+    fun mostrarMinas(): Boolean{
+        for(i in 0 until tablero.size){
+            for (j in 0 until tablero[0].size){
+                if (tablero[i][j].valor == 100){
+                    tablero[i][j].estado = EnumEstado.MINA_REVENTADA.toString()
+                }
+            }
+        }
+        return true;
+    }
+
+    fun marcarMina(f: Int, c: Int){
+        tablero[f][c].estado = EnumEstado.MINA_MARCADA.toString()
+    }
+
+    private fun agregarMinas(minas: Int){
+        var contador = 0
+        while(contador --> minas){
+            val filaTemp = Random.nextInt(0,tablero.size)
+            val columnaTemp = Random.nextInt(0,tablero[0].size)
+            if (tablero[filaTemp][columnaTemp].valor != 100){
+                tablero[filaTemp][columnaTemp].valor = 100
+                contador++
+                for (ft2 in (filaTemp - 1)..(filaTemp+1)) {
+                    for (ct2 in (columnaTemp-1)..(columnaTemp+1)){
+                        if (tablero[filaTemp][columnaTemp].valor != 100){
+                            tablero[filaTemp][columnaTemp].valor++
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
