@@ -6,8 +6,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Refresh
@@ -44,6 +45,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -69,18 +71,20 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Preview(showBackground = true)
+//@Preview(showBackground = true)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Ventana() {
-    var isready = remember { mutableStateOf(true) }
-    var time = remember { mutableIntStateOf(60) }
+    val isready = remember { mutableStateOf(false) }
+    val time = remember { mutableIntStateOf(60) }
     val dificultad = remember { mutableStateOf(EnumDificultad.MEDIUM.toString()) }
     var tablero = Tablero.inicializarTablero(dificultad.value)
     val banderas = remember { mutableIntStateOf(0) }
+    val mostrarMensajeFlotante1 = remember { mutableStateOf(true) }
+    val mostrarMensajeFlotante2 = remember { mutableStateOf(false) }
     banderas.intValue = Tablero.minas
-    val timer = remember { mutableIntStateOf(0) }
     val refresh = remember { mutableStateOf(false) }
+    MensajeAlerta(mostrarMensajeFlotante1, "Buscaminas UD", "Bienvenido a buscaminas", isready, time, 1, refresh)
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -88,7 +92,13 @@ fun Ventana() {
                     TopInfo(isready, time, Tablero.minas, banderas)
                 },
                 actions = {
-                    IconButton(onClick = { }) {
+                    IconButton(onClick = {
+                        Tablero.librerarEspacioMemoria()
+                        refresh.value = !refresh.value
+                        time.intValue = 60
+                        isready.value = true
+                        banderas.value = Tablero.minas
+                    }) {
                         Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                 },
@@ -116,14 +126,28 @@ fun Ventana() {
         ) {
             if (refresh.value) {
                 tablero = Tablero.inicializarTablero(dificultad.value)
-                MinesBoard(tablero, refresh)
-            } else MinesBoard(tablero = Tablero.inicializarTablero(dificultad.value), refresh)
+                MinesBoard(tablero, refresh, banderas, mostrarMensajeFlotante2)
+            } else MinesBoard(tablero = Tablero.inicializarTablero(dificultad.value), refresh, banderas, mostrarMensajeFlotante2)
         }
     }
+    MensajeAlerta(
+        mostrarMensajeFlotante2,
+        "puntuacion: {${Tablero.puntaje.toString()}}\n ¿Volver a intentar?",
+        "Fin del juego",
+        isready,
+        time,
+        0,
+        refresh
+    )
 }
 
 @Composable
-fun TopInfo(isready: MutableState<Boolean>, time: MutableState<Int>, minas: Int, banderas: MutableState<Int>) {
+fun TopInfo(
+    isready: MutableState<Boolean>,
+    time: MutableState<Int>,
+    minas: Int,
+    banderas: MutableState<Int>
+) {
 
     val imageReloj = R.drawable.reloj
     val imageMinies = R.drawable.bomb
@@ -194,16 +218,45 @@ fun Desplegable(seleccion: MutableState<String>) {
 }
 
 @Composable
-fun MinesBoard(tablero: List<List<Casilla>>, refresh: MutableState<Boolean>) {
+fun MinesBoard(tablero: List<List<Casilla>>, refresh: MutableState<Boolean>, banderas: MutableState<Int>, mostrarMensaje: MutableState<Boolean>) {
     for (f in tablero.indices) {
         Row {
             for (c in 0 until tablero[0].size) {
                 when (tablero[f][c].estado) {
                     EnumEstado.VISIBLE.toString() -> MiniesBox(tablero[f][c])
-                    EnumEstado.OCULTA.toString() -> MiniesButton(f, c, tablero[f][c], refresh)
+                    EnumEstado.OCULTA.toString() -> MiniesButton(
+                        onClick = {
+                            when (tablero[f][c].valor) {
+                                0 -> Tablero.mostrarCerosAdyacentes(f, c)
+                                100 -> {
+                                    Tablero.mostrarMinas()
+                                    mostrarMensaje.value = true
+                                }
+                                else -> tablero[f][c].estado = EnumEstado.VISIBLE.toString()
+                            }
+                            refresh.value = !refresh.value
+                        }, onLongPress = {
+                            Tablero.marcarCasilla(f,c)
+                            refresh.value = !refresh.value
+                            banderas.value--
+                            if(banderas.value == 0){
+                                Tablero.mostrarMinas()
+                                refresh.value = !refresh.value
+                                mostrarMensaje.value = true
+                            }
+                        }, false)
                     EnumEstado.MINA_REVENTADA.toString() -> {
                         ImageButton(R.drawable.explosion)
                     }
+                    EnumEstado.MINA_MARCADA.toString() -> MiniesButton(
+                        onClick = {  },
+                        onLongPress = {
+                            Tablero.desmarcarCasilla(f,c)
+                            refresh.value = !refresh.value
+                            banderas.value++
+                                      },
+                        true
+                    )
                 }
             }
         }
@@ -211,31 +264,33 @@ fun MinesBoard(tablero: List<List<Casilla>>, refresh: MutableState<Boolean>) {
 }
 
 @Composable
-fun MiniesButton(f: Int, c: Int, casilla: Casilla, refresh: MutableState<Boolean>) {
-    if (casilla.estado == EnumEstado.MINA_MARCADA.toString()) {
-        ImageButton(R.drawable.bandera)
-    } else {
-        Button(
-            onClick = {
-                /*
-                * Cuando clickeo el boton tengo tres posibilidades:
-                * 1. si el valor es cero entonces muestro los adyacentes
-                * 2. si el valor es una mina = 100 entonces muestro todas las minas y acabo el juego
-                * 3. si el valor es cualquier otro numero, solo lo muestro
-                * */
-                when (casilla.valor) {
-                    0 -> Tablero.mostrarCerosAdyacentes(f, c)
-                    100 -> Tablero.mostrarMinas()
-                    else -> casilla.estado = EnumEstado.VISIBLE.toString()
-                }
-                refresh.value = !refresh.value
-            },
-            modifier = Modifier
-                .padding(4.dp)
-                .size(40.dp),
-            shape = RoundedCornerShape(0.dp)
-        ) {
-
+fun MiniesButton(onClick: () -> Unit,
+    onLongPress: () -> Unit, bandera: Boolean
+) {
+    val coroutineScope = rememberCoroutineScope()
+    Box (
+        modifier = Modifier
+            .padding(4.dp)
+            .size(35.dp)
+            .background(Color.DarkGray)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        val job = coroutineScope.launch {
+                            delay(1000L) // 1 segundo
+                            onLongPress()
+                        }
+                        tryAwaitRelease()
+                        job.cancel()
+                    },
+                    onTap = {
+                        onClick()
+                    }
+                )
+            }
+    ){
+        if(bandera){
+            Image(painterResource(R.drawable.banderaw), contentDescription = "Banderas")
         }
     }
 }
@@ -245,7 +300,7 @@ fun MiniesBox(casilla: Casilla) {
     Box(
         modifier = Modifier
             .padding(4.dp)
-            .size(40.dp)
+            .size(35.dp)
             .border(2.dp, Color.DarkGray),
         contentAlignment = Alignment.Center
     ) {
@@ -266,15 +321,23 @@ fun ImageButton(imageId: Int) {
         contentDescription = null, // Puedes agregar una descripción aquí
         modifier = Modifier
             .padding(4.dp)
-            .size(40.dp)
+            .size(35.dp)
             .clickable { /* Acción al hacer clic en la imagen */ },
     )
 }
 
 @Composable
-fun MensajeAlerta(mostrarMensaje: MutableState<Boolean>, mensaje: String, titulo: String) {
+fun MensajeAlerta(
+    mostrarMensaje: MutableState<Boolean>,
+    mensaje: String,
+    titulo: String,
+    isready: MutableState<Boolean>,
+    time: MutableState<Int>,
+    temp: Int,
+    refresh: MutableState<Boolean>
+) {
     Column(modifier = Modifier.padding(16.dp)) {
-        if(mostrarMensaje.value){
+        if (mostrarMensaje.value) {
             AlertDialog(
                 icon = {
                     Icon(Icons.Default.CheckCircle, "Correcto")
@@ -282,12 +345,30 @@ fun MensajeAlerta(mostrarMensaje: MutableState<Boolean>, mensaje: String, titulo
                 onDismissRequest = { mostrarMensaje.value = !mostrarMensaje.value },
                 title = {
                     Text(
+                        text = titulo
+                    )
+                },
+                text = {
+                    Text(
                         text = mensaje
                     )
                 },
+                dismissButton = {
+                    if (temp==0){
+                        Button(onClick = {
+                            mostrarMensaje.value = !mostrarMensaje.value
+                        }) {
+                            Text(text = "Cancelar")
+                        }
+                    }
+                },
                 confirmButton = {
                     Button(onClick = {
-                        
+                        isready.value = true
+                        time.value=60
+                        Tablero.librerarEspacioMemoria()
+                        refresh.value != refresh.value
+                        mostrarMensaje.value = !mostrarMensaje.value
                     }) {
                         Text(text = "Aceptar")
                     }

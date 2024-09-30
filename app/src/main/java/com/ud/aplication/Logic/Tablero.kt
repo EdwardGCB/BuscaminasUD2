@@ -25,6 +25,7 @@ object Tablero {
                     filas = 8
                     columnas = 8
                     minas = 10
+
                 }
                 EnumDificultad.MEDIUM.toString() -> {
                     filas = 12
@@ -97,7 +98,7 @@ object Tablero {
             for (j in 0 until tablero[0].size){
                 if (tablero[i][j].valor == 100){
                     if(tablero[i][j].estado == EnumEstado.MINA_MARCADA.toString()){
-                        puntaje +=100
+                        puntaje += 100
                     }
                     tablero[i][j].estado = EnumEstado.MINA_REVENTADA.toString()
                 }
@@ -106,8 +107,12 @@ object Tablero {
         return true;
     }
 
-    fun marcarMina(f: Int, c: Int){
+    fun marcarCasilla(f: Int, c: Int){
         tablero[f][c].estado = EnumEstado.MINA_MARCADA.toString()
+    }
+
+    fun desmarcarCasilla(f: Int, c: Int){
+        tablero[f][c].estado = EnumEstado.OCULTA.toString()
     }
 
     private fun agregarMinas(minas: Int){
@@ -134,6 +139,5 @@ object Tablero {
 
     fun librerarEspacioMemoria(){
         tablero= mutableListOf()
-        minas = 0
     }
 }
