@@ -20,7 +20,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenuItem
@@ -33,10 +35,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -49,7 +53,10 @@ import androidx.compose.ui.unit.sp
 import com.ud.aplication.Enums.EnumDificultad
 import com.ud.aplication.Enums.EnumEstado
 import com.ud.aplication.Logic.Casilla
+import com.ud.aplication.Logic.Operaciones
 import com.ud.aplication.Logic.Tablero
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 class MainActivity : ComponentActivity() {
@@ -66,17 +73,19 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Ventana() {
+    var isready = remember { mutableStateOf(true) }
+    var time = remember { mutableIntStateOf(60) }
     val dificultad = remember { mutableStateOf(EnumDificultad.MEDIUM.toString()) }
     var tablero = Tablero.inicializarTablero(dificultad.value)
     val banderas = remember { mutableIntStateOf(0) }
-    banderas.value = Tablero.minas
+    banderas.intValue = Tablero.minas
     val timer = remember { mutableIntStateOf(0) }
     val refresh = remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    TopInfo(timer, Tablero.minas, banderas)
+                    TopInfo(isready, time, Tablero.minas, banderas)
                 },
                 actions = {
                     IconButton(onClick = { }) {
@@ -114,10 +123,17 @@ fun Ventana() {
 }
 
 @Composable
-fun TopInfo(timer: MutableState<Int>, minas: Int, banderas: MutableState<Int>) {
+fun TopInfo(isready: MutableState<Boolean>, time: MutableState<Int>, minas: Int, banderas: MutableState<Int>) {
+
     val imageReloj = R.drawable.reloj
     val imageMinies = R.drawable.bomb
     val imageFlag = R.drawable.bandera
+    LaunchedEffect(key1 = time, key2 = isready) {
+        while (time.value > 0 && isready.value) {
+            delay(1000L)
+            time.value--
+        }
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
@@ -126,7 +142,7 @@ fun TopInfo(timer: MutableState<Int>, minas: Int, banderas: MutableState<Int>) {
         Text(minas.toString())
         Spacer(modifier = Modifier.width(20.dp))
         Image(painterResource(imageReloj), contentDescription = "Reloj")
-        Text(timer.value.toString())
+        Text(Operaciones().formatTime(time.value))
         Spacer(modifier = Modifier.width(20.dp))
         Image(painterResource(imageFlag), contentDescription = "Banderas")
         Text(banderas.value.toString())
@@ -185,6 +201,9 @@ fun MinesBoard(tablero: List<List<Casilla>>, refresh: MutableState<Boolean>) {
                 when (tablero[f][c].estado) {
                     EnumEstado.VISIBLE.toString() -> MiniesBox(tablero[f][c])
                     EnumEstado.OCULTA.toString() -> MiniesButton(f, c, tablero[f][c], refresh)
+                    EnumEstado.MINA_REVENTADA.toString() -> {
+                        ImageButton(R.drawable.explosion)
+                    }
                 }
             }
         }
@@ -195,7 +214,7 @@ fun MinesBoard(tablero: List<List<Casilla>>, refresh: MutableState<Boolean>) {
 fun MiniesButton(f: Int, c: Int, casilla: Casilla, refresh: MutableState<Boolean>) {
     if (casilla.estado == EnumEstado.MINA_MARCADA.toString()) {
         ImageButton(R.drawable.bandera)
-    }else {
+    } else {
         Button(
             onClick = {
                 /*
@@ -223,29 +242,24 @@ fun MiniesButton(f: Int, c: Int, casilla: Casilla, refresh: MutableState<Boolean
 
 @Composable
 fun MiniesBox(casilla: Casilla) {
-    if(casilla.valor == 100){
-        ImageButton(R.drawable.explosion)
-    }else{
-        Box(
-            modifier = Modifier
-                .padding(4.dp)
-                .size(40.dp)
-                .border(2.dp, Color.DarkGray),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = if(casilla.valor == 0)"" else casilla.valor.toString(),
-                fontSize = 16.sp,
-                modifier = Modifier.fillMaxSize(),
-                textAlign = TextAlign.Center
-            )
-        }
+    Box(
+        modifier = Modifier
+            .padding(4.dp)
+            .size(40.dp)
+            .border(2.dp, Color.DarkGray),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = if (casilla.valor == 0) "" else casilla.valor.toString(),
+            fontSize = 16.sp,
+            modifier = Modifier.fillMaxSize(),
+            textAlign = TextAlign.Center
+        )
     }
 }
 
 @Composable
 fun ImageButton(imageId: Int) {
-
     // Crea un botón con la imagen
     Image(
         painter = painterResource(imageId),
@@ -255,4 +269,30 @@ fun ImageButton(imageId: Int) {
             .size(40.dp)
             .clickable { /* Acción al hacer clic en la imagen */ },
     )
+}
+
+@Composable
+fun MensajeAlerta(mostrarMensaje: MutableState<Boolean>, mensaje: String, titulo: String) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        if(mostrarMensaje.value){
+            AlertDialog(
+                icon = {
+                    Icon(Icons.Default.CheckCircle, "Correcto")
+                },
+                onDismissRequest = { mostrarMensaje.value = !mostrarMensaje.value },
+                title = {
+                    Text(
+                        text = mensaje
+                    )
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        
+                    }) {
+                        Text(text = "Aceptar")
+                    }
+                }
+            )
+        }
+    }
 }

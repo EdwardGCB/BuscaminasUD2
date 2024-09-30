@@ -7,6 +7,7 @@ import kotlin.random.Random
 object Tablero {
     private var tablero: MutableList<MutableList<Casilla>> = mutableListOf()
     var minas: Int = 0
+    var puntaje: Int = 0
 
     fun inicializarTablero(dificultad: String?): List<List<Casilla>>{
         if(tablero.isEmpty()){
@@ -95,9 +96,10 @@ object Tablero {
         for(i in 0 until tablero.size){
             for (j in 0 until tablero[0].size){
                 if (tablero[i][j].valor == 100){
-                    tablero[i][j].estado = EnumEstado.VISIBLE.toString()
-
-                    //tablero[i][j].estado = EnumEstado.MINA_REVENTADA.toString()
+                    if(tablero[i][j].estado == EnumEstado.MINA_MARCADA.toString()){
+                        puntaje +=100
+                    }
+                    tablero[i][j].estado = EnumEstado.MINA_REVENTADA.toString()
                 }
             }
         }
