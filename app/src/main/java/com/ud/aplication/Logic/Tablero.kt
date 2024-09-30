@@ -5,7 +5,7 @@ import com.ud.aplication.Enums.EnumEstado
 import kotlin.random.Random
 
 object Tablero {
-    private var tablero: MutableList<MutableList<Casilla>> = mutableListOf()
+    internal var tablero: MutableList<MutableList<Casilla>> = mutableListOf()
     var minas: Int = 0
 
     fun inicializarTablero(dificultad: String?): List<List<Casilla>>{
@@ -108,7 +108,7 @@ object Tablero {
         tablero[f][c].estado = EnumEstado.MINA_MARCADA.toString()
     }
 
-    private fun agregarMinas(minas: Int){
+    internal fun agregarMinas(minas: Int){
         var contador = 0
         while(contador < minas){
             val filaTemp = Random.nextInt(0,tablero.size)
