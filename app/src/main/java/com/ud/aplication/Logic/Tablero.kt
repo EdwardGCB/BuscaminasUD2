@@ -7,6 +7,7 @@ import kotlin.random.Random
 object Tablero {
     private var tablero: MutableList<MutableList<Casilla>> = mutableListOf()
     var minas: Int = 0
+    var puntaje: Int = 0
 
     fun inicializarTablero(dificultad: String?): List<List<Casilla>>{
         if(tablero.isEmpty()){
@@ -24,6 +25,7 @@ object Tablero {
                     filas = 8
                     columnas = 8
                     minas = 10
+
                 }
                 EnumDificultad.MEDIUM.toString() -> {
                     filas = 12
@@ -95,17 +97,22 @@ object Tablero {
         for(i in 0 until tablero.size){
             for (j in 0 until tablero[0].size){
                 if (tablero[i][j].valor == 100){
-                    tablero[i][j].estado = EnumEstado.VISIBLE.toString()
-
-                    //tablero[i][j].estado = EnumEstado.MINA_REVENTADA.toString()
+                    if(tablero[i][j].estado == EnumEstado.MINA_MARCADA.toString()){
+                        puntaje += 100
+                    }
+                    tablero[i][j].estado = EnumEstado.MINA_REVENTADA.toString()
                 }
             }
         }
         return true;
     }
 
-    fun marcarMina(f: Int, c: Int){
+    fun marcarCasilla(f: Int, c: Int){
         tablero[f][c].estado = EnumEstado.MINA_MARCADA.toString()
+    }
+
+    fun desmarcarCasilla(f: Int, c: Int){
+        tablero[f][c].estado = EnumEstado.OCULTA.toString()
     }
 
     private fun agregarMinas(minas: Int){
@@ -132,6 +139,5 @@ object Tablero {
 
     fun librerarEspacioMemoria(){
         tablero= mutableListOf()
-        minas = 0
     }
 }
